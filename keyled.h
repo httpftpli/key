@@ -3,16 +3,16 @@
 #include <stdbool.h>
 
 
-enum LEDFUN {ONOFF=1, BLINKON, BLINKOFF};
+enum LEDFUN {ONOFF=1, BLINKON, BLINKOFF,LEDFUNMAX};
 
 struct LED {
     unsigned char func;
     unsigned char stat;
     bool          on;
-    unsigned int ontime;
-    unsigned int ontimeval;
-    unsigned int offtime;
-    unsigned int offtimeval;
+    unsigned short ontime;
+    unsigned short ontimeval;
+    unsigned short offtime;
+    unsigned short offtimeval;
 };
 
 

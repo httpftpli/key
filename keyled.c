@@ -29,27 +29,30 @@ void keyLedProcess() {
         for (int i = 0; i < lenthof(led); i++) {
             switch(led[i].func) {
             case ONOFF:
-                if (led[i].on && led[i].ontime != -1UL
-                    && led[i].ontimeval++==led[i].ontime) {
+                if (led[i].on && led[i].ontime != 0xffff
+                    && led[i].ontimeval++ >= led[i].ontime) {
                     led[i].on =  false;
                     led[i].ontimeval = 0;
                     led[i].stat = 1;
+                    led[i].func = 0;
                     ledstat = 1;
                 }
                 break;
             case BLINKON:
-                if (led[i].ontimeval++ == led[i].ontime) {
+                if (led[i].ontimeval++ >= led[i].ontime) {
                     led[i].ontimeval = 0;
                     led[i].on =  false;
-                    led[i].stat = BLINKOFF;
+                    led[i].stat = 1;
+                    led[i].func = BLINKOFF;
                     ledstat = 1;
                 }
                 break;
             case BLINKOFF:
-                if (led[i].offtimeval++ == led[i].offtime) {
+                if (led[i].offtimeval++ >= led[i].offtime) {
                     led[i].offtimeval = 0;
                     led[i].on  =  true;
-                    led[i].stat = BLINKON;
+                    led[i].func = BLINKON;
+                    led[i].stat = 1;
                     ledstat = 1;
                 }
                 break;
@@ -60,13 +63,16 @@ void keyLedProcess() {
         if (ledstat == 1) {
             ledstat = 0;
             for (int i = 0; i < 16; i++) {
+              if(led[i].stat == 1){
+                led[i].stat = 0;
                 if (led[i].on == true) {
                     ledbitmap &=  ~(unsigned short)(1 << i);
                 } else {
                     ledbitmap |= (unsigned short)(1 << i);
                 }
+                keyLedSet(ledbitmap);
+                }
             }
-            keyLedSet(ledbitmap);
         }
     }
 }
@@ -89,9 +95,11 @@ void keyLedOn_bitmap(unsigned short bitmap) {
     for (int i = 0; i < 16; i++) {
         if ((bitmap & 1 << i) == 0) {
             led[i].stat = ONOFF;
+            led[i].ontime = 0xffff;
             led[i].on = 1;
         } else {
             led[i].stat = ONOFF;
+            led[i].ontime = 0xffff;
             led[i].on = 0;
         }
     }

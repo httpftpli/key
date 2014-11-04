@@ -310,7 +310,7 @@ void CMD_SetKeyLed_bitmap(unsigned short val){
         led[i].on = !(val & i<<i);
         led[i].func = ONOFF;
     }
-    keyLedOn_bitmap(val); 
+    keyLedOn_bitmap(val);
 }
 
 
@@ -318,11 +318,13 @@ void CMD_SetKeyLed(unsigned char iled,unsigned char funcode,unsigned short ontim
     if (iled>16) {
         return;
     }
+    if(funcode >= (unsigned int)LEDFUNMAX) return;
     led[iled].func = (enum LEDFUN)funcode;
     led[iled].offtimeval = 0;
     led[iled].ontimeval = 0;
     led[iled].ontime = ontime_ms;
     led[iled].offtime = offtime_ms;
+    led[iled].on = 1;
     led[iled].stat = 1;
     ledstat = 1;
 }
@@ -354,9 +356,9 @@ void cmdProcess() {
         CMD_SetKeyLed_bitmap((g_cmd.buf[3] << 8) | g_cmd.buf[2]);
         break;
     case CMD_SETKEYLED:
-        CMD_SetKeyLed(g_cmd.buf[3]&0x0f,g_cmd.buf[3]>>4,
-                      g_cmd.buf[4]&g_cmd.buf[5]<<8,
-                      g_cmd.buf[6]&g_cmd.buf[7]<<8);
+        CMD_SetKeyLed(g_cmd.buf[2]&0x0f,g_cmd.buf[2]>>4,
+                      g_cmd.buf[3] | g_cmd.buf[4]<<8,
+                      g_cmd.buf[5] | g_cmd.buf[6]<<8);
         break;
     default:
         break;
