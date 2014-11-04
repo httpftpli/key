@@ -1,6 +1,26 @@
 #include  "touch.h"
+#include <stdbool.h>
+#include "timer.h"
+#include <string.h>
 
-TOUCHPRA TouchPra;
+
+
+#define TOUCH_DEBUG    0
+
+
+unsigned int touchAccurMargin = TOUCHMISSDEFUALT;
+
+void SpiCsEnable(void);
+void SpiCsDisable(void);
+void SpiSend(uint8_t *buf, uint8_t Length);
+void SpiReceive(uint8_t *buf, uint8_t length);
+uint8_t TouchSample(void);
+uint32_t sum(uint16_t *buf, uint16_t nNum);
+void bubbleSortAscend(uint16_t *buf, uint16_t nNum);
+uint16_t TouchXsample(void);
+uint16_t TouchYsample(void);
+bool touchPushed(void);
+
 
 void SpiCsEnable(void) {
     GPIO_ResetBits(ADS7843_CS_GPIO, ADS7843_CS_GPIOBIT);
@@ -70,7 +90,7 @@ void TouchInit(void) {
     SPI_InitStruct.SPI_CPOL = SPI_CPOL_Low;
     SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
     SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
-    SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
+    SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
 
     SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
     SPI_InitStruct.SPI_CRCPolynomial = 7;
@@ -78,24 +98,14 @@ void TouchInit(void) {
     SPI_RxFIFOThresholdConfig(SPI1, SPI_RxFIFOThreshold_QF);
     SPI_Cmd(SPI1, ENABLE);
 
-    TouchPra.TouchIntState = 1;
-    TouchPra.TouchDataState = 0;
-    TouchPra.TouchState = 0;
-    TouchPra.TouchContinuousCount = 0;
-    TouchPra.TouchIntCount = TOUCHINTMAX;
-    TouchPra.TouchScanCount = 0;
-    TouchPra.TouchMissCount = TOUCHMISSDEFUALT;
     //spiInit(0,0);
     //touchTimerInit();
 }
 
-uint8_t   GetTouchIntVaule(void) {
-    return(GPIO_ReadInputDataBit(ADS7843_INT_GPIO, ADS7843_INT_GPIOBIT));
-}
-uint8_t   GetTouchBuyeVaule(void) {
-    return(GPIO_ReadInputDataBit(ADS7843_BUYE_GPIO, ADS7843_BUYE_GPIOBIT));
-}
 
+bool touchPushed(void){
+    return !(GPIO_ReadInputDataBit(ADS7843_INT_GPIO, ADS7843_INT_GPIOBIT));
+}
 
 
 
@@ -117,13 +127,14 @@ void bubbleSortAscend(uint16_t *buf, uint16_t nNum) {
     }
 }
 
-uint16_t sum(uint16_t *buf, uint16_t nNum) {
+uint32_t sum(uint16_t *buf, uint16_t nNum) {
     int16_t sum = 0;
     for (int i = 0; i < nNum; i++) {
         sum += buf[i];
     }
     return sum;
 }
+
 
 void SpiSend(uint8_t *buf, uint8_t Length) {
     uint8_t i;
@@ -185,79 +196,152 @@ uint16_t TouchYsample(void) {
 }
 
 
-uint8_t GetTouchSample(void) {
+#define SAMPLE_NUM_ERVERY    5
 
-    uint16_t xsampleval[8], ysampleval[8];
-    uint16_t i;
 
-    for (i = 0; i < 8; i++) {
+
+
+void  touchSample(uint16_t *x, uint16_t *y) {
+    uint16_t xsampleval[SAMPLE_NUM_ERVERY], ysampleval[SAMPLE_NUM_ERVERY];
+#if TOUCH_DEBUG
+    //GPIOSetValue(3, 0, 1);
+#endif
+    for(int i=0;i<100;i++);
+    for (int i = 0; i < SAMPLE_NUM_ERVERY; i++) {
         xsampleval[i] = TouchXsample();
+    }
+    for(int i=0;i<100;i++);
+    bubbleSortAscend(xsampleval, lenthof(xsampleval));
+    for (int i = 0; i < SAMPLE_NUM_ERVERY; i++) {
         ysampleval[i] = TouchYsample();
     }
+#if TOUCH_DEBUG
+    static unsigned short debugbufx[200][SAMPLE_NUM_ERVERY],debugbufy[200][SAMPLE_NUM_ERVERY];
+    static unsigned int debugbufindex = 0;
+    memcpy(debugbufx[debugbufindex],xsampleval, sizeof xsampleval);
+    memcpy(debugbufy[debugbufindex],ysampleval, sizeof ysampleval);
+    if(++debugbufindex == 200) debugbufindex = 0;
+    // GPIOSetValue(3, 0, 0);
+#endif
+    bubbleSortAscend(ysampleval, lenthof(ysampleval));
+    *y =  sum(ysampleval + 1, lenthof(ysampleval) - 2) / (lenthof(ysampleval) - 2);
+    *x =  sum(xsampleval + 1, lenthof(xsampleval) - 2) / (lenthof(xsampleval) - 2);
 
-    /*
-    for(i=0;i<5;i++)
-    {
-       Xbuf[i]=xsampleval[i+3];
-       Ybuf[i]=ysampleval[i+3];
-    }
-    */
-    bubbleSortAscend(xsampleval, lenthof(xsampleval));
-    bubbleSortAscend(ysampleval, lenthof(xsampleval));
-    if ((xsampleval[7] - xsampleval[0] > TouchPra.TouchMissCount) || (ysampleval[7] - ysampleval[0] > TouchPra.TouchMissCount)) {
-        return  1;
-    }
-    TouchPra.TouchYsample =  sum(ysampleval + 2, lenthof(ysampleval) - 4) / (lenthof(ysampleval) - 4);
-    TouchPra.TouchXsample =  sum(xsampleval + 2, lenthof(xsampleval) - 4) / (lenthof(xsampleval) - 4);
-    return 0;
 }
 
 
 
-void TouchScan(void) {
-    switch (TouchPra.TouchState) {
-    case  0x00:
-        {
-            /////////////等待触摸按下
-            if (TouchPra.TouchIntState == 0 && TouchPra.TouchScanCount == 0) {
-                /////////触摸第一次有效,读数据并发送，进入连击状态
-                if (GetTouchSample() == 0) {
-                    TouchPra.TouchDataState = 1;
-                    TouchPra.TouchState = 0x01;
-                    TouchPra.TouchContinuousCount = TOUCHCONTINUOUSMAX;
-                } else {
-                    TouchPra.TouchDataState = 0;
-                    TouchPra.TouchScanCount == TOUCHSCANTIME;
-                }
-            }
-            break;
-        }
-    case  0x01:
-        {
-            /////////////等待连击，如不符合连击条件，
-            if ((TouchPra.TouchState == 1) && (TouchPra.TouchContinuousCount == 0)) {
-                /////////触摸第连击有效,读数据并发送，进入连击状态
-                TouchPra.TouchState = 0x01;
-                if (GetTouchSample() == 0) {
-                    TouchPra.TouchDataState = 1;
-                    TouchPra.TouchContinuousCount = TOUCHCONTINUOUSMAX;
-                } else {
-                    TouchPra.TouchDataState = 0;
-                    TouchPra.TouchContinuousCount = TOUCHSCANTIME;
-                }
-            }
+bool touched = false;
+unsigned short touchpointX ;
+unsigned short touchpointY ;
 
-            break;
-        }
 
-    default:
-        {
-            TouchPra.TouchState = 0;
-            break;
-        }
+void TouchScan(){
+#define NO_TOUCH            0
+#define TOUCHED     3
+#define TOUCH_SAMPLE_BEGIN  5
+#define TOUCH_DEBOUNCE      7
+#define TOUCH_FROZE       4
+
+
+  static int samplecounter = 0,stat = NO_TOUCH;
+  static uint16_t xbuf[TOUCH_SAMPLE_NUM],ybuf[TOUCH_SAMPLE_NUM];
+  static uint16_t xbuftemp[TOUCH_SAMPLE_NUM],ybuftemp[TOUCH_SAMPLE_NUM];
+  static unsigned int timemark;
+  touched = false;
+  switch(stat){
+   case NO_TOUCH:
+      if(touchPushed()){
+         stat = TOUCH_DEBOUNCE;
+         timemark = timerTick05ms;
+      }
+      break;
+  case TOUCH_DEBOUNCE:
+    if(!touchPushed()){
+        samplecounter = 0;
+        stat = NO_TOUCH;
+    }else{
+      if(timerTick05ms-timemark> 30){
+        stat = TOUCH_SAMPLE_BEGIN;
+        memset(xbuf,0 ,sizeof xbuf);
+        memset(ybuf,0 ,sizeof ybuf);
+        timemark = timerTick05ms;
+      }
     }
+    break;
+  case TOUCH_SAMPLE_BEGIN:
+     if(!touchPushed()){
+        samplecounter = 0;
+        stat = NO_TOUCH;
+    }else{
+      touchSample(xbuf+samplecounter,ybuf+samplecounter);
+      samplecounter ++;
+      if(samplecounter == TOUCH_SAMPLE_NUM){
+         samplecounter = 0;
+         memcpy(xbuftemp, xbuf,sizeof xbuf);
+         memcpy(ybuftemp, ybuf,sizeof ybuf);
+         bubbleSortAscend(xbuftemp, TOUCH_SAMPLE_NUM);
+         bubbleSortAscend(ybuftemp, TOUCH_SAMPLE_NUM);
+         if(((xbuftemp[TOUCH_SAMPLE_NUM-1]-xbuftemp[0])<touchAccurMargin)&&
+            ((ybuftemp[TOUCH_SAMPLE_NUM-1]-ybuftemp[0])<touchAccurMargin)){
+           touchpointX = xbuftemp[TOUCH_SAMPLE_NUM/2];
+           touchpointY = ybuftemp[TOUCH_SAMPLE_NUM/2];
+           stat = TOUCHED;
+           timemark = timerTick05ms;
+           touched = 1;
+          }else if((timerTick05ms-timemark>60) &&
+                   ((xbuftemp[TOUCH_SAMPLE_NUM-1]-xbuftemp[0])<touchAccurMargin+15)&&
+                   ((ybuftemp[TOUCH_SAMPLE_NUM-1]-ybuftemp[0])<touchAccurMargin+15)){
+           touchpointX = xbuftemp[TOUCH_SAMPLE_NUM/2];
+           touchpointY = ybuftemp[TOUCH_SAMPLE_NUM/2];
+           stat = TOUCHED;
+           timemark = timerTick05ms;
+           touched = 1;
+          }
+      }
+    }
+    break;
+  case TOUCHED:
+     if(!touchPushed()){
+        samplecounter = 0;
+        stat = NO_TOUCH;
+    }else{
+      touchSample(xbuf+samplecounter,ybuf+samplecounter);
+      samplecounter ++;
+      if((samplecounter == TOUCH_SAMPLE_NUM)){
+         samplecounter = 0;
+         memcpy(xbuftemp, xbuf,sizeof xbuf);
+         memcpy(ybuftemp, ybuf,sizeof ybuf);
+         bubbleSortAscend(xbuftemp, TOUCH_SAMPLE_NUM);
+         bubbleSortAscend(ybuftemp, TOUCH_SAMPLE_NUM);
+         if(((xbuftemp[TOUCH_SAMPLE_NUM-1]-xbuftemp[0])<touchAccurMargin+60)&&
+            ((ybuftemp[TOUCH_SAMPLE_NUM-1]-ybuftemp[0])<touchAccurMargin+60)){
+                touchpointX = xbuftemp[TOUCH_SAMPLE_NUM/2];
+                touchpointY = ybuftemp[TOUCH_SAMPLE_NUM/2];
+                touched = 1;
+                stat = TOUCH_FROZE;
+          }
+      }
+    }
+    break;
+  case TOUCH_FROZE:
+    if(!touchPushed()){
+        samplecounter = 0;
+        stat = NO_TOUCH;
+    }else{
+      if(timerTick05ms-timemark > 40){
+        stat = TOUCHED;
+        samplecounter = 0;
+        timemark = timerTick05ms;
+      }
+    }
+    break;
+  default:
+    break;
+  }
 }
 
 
-
-
+void  setTouchAccur(unsigned char val){
+    touchAccurMargin = val;
+ }

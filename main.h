@@ -47,10 +47,14 @@ void Timer14ini(void);
 void IWDG_Config(void);
 
 
+#define everydiffdo(TYPE,MARK,val)\
+            static TYPE __old ## MARK = 0;\
+            for (TYPE MARK = val; MARK!=__old ## MARK;\
+              __old ## MARK=MARK)
 
 
 
-
+#define lenthof(array) (sizeof((array))/sizeof((array[0])))
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/

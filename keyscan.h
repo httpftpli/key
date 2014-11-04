@@ -1,4 +1,5 @@
 #include "stm32f0xx.h"
+#include <stdbool.h>
 
 
 #define  NUM_KEY_IN     8
@@ -63,13 +64,13 @@
 
 
 
-
+extern unsigned char keycode;
+extern bool keytouched;
 
 void Keyscandelay(uint16_t n);
-void leyScanOutputReset(void);
+void keyScanOutputReset(void);
 void keyScanInit(void);
-uint8_t keyScan(void);
-uint8_t GetKeystate(void);
+unsigned char keyScan(void);
 
 extern uint8_t KeyValue;
 extern uint8_t KeyScanCount;          //扫描时间计数器 1个1MS

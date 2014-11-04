@@ -55,7 +55,8 @@ void SysTick_Handler(void);
 
 
 /*void PPP_IRQHandler(void);*/
-void TIM14_IRQHandler(void);                 ////1MSÖÐ¶Ï
+void TIM14_IRQHandler(void);                             
+                                            
 void USART2_IRQHandler(void);                ////USART2ÖÐ¶Ï
 
 #ifdef __cplusplus

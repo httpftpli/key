@@ -14,11 +14,8 @@ void LcdBlInit(void) {
     LcdBlOff();
 }
 
-void LcdBlOn(void) {
-    GPIO_ResetBits(LCDBL_GPIO, LCDBL_GPIO_GPIOBIT);
-}
 
 
-void LcdBlOff(void) {
-    GPIO_SetBits(LCDBL_GPIO, LCDBL_GPIO_GPIOBIT);
+void LcdBlCtr(uint8_t val){
+
 }

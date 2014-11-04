@@ -43,62 +43,19 @@
 #define   CMD_SETTOUCHMISS      0X05
 #define   CMD_GOBOOT            0X06
 #define   CMD_LCDBLCTR          0X07
-#define   CMD_SETKEYLED         0X08
-
-
-
-
-///////////////////////////////////////
-#define     SENDKEYNONLY   0
-#define     SENDTOUCHNONLY   1
-#define     SENDTOUCHNANDKEY   2
-
-
-
-
-typedef struct __usart2pra {
-    uint8_t  Usart2SendBuye;
-    uint8_t  Usart2SendNum;
-    uint8_t  Usart2SendBuff[USART2_COM_LONG_NUM];
-
-    //////////////////////////////
-    uint8_t  Usart2Rxing;
-    uint8_t  Usart2RxLen;
-    uint8_t  Usart2RxOK;
-
-    uint8_t  Usart2RxTimeOutCount;
-    uint8_t  Usart2RxBuff[USART2_COM_LONG_NUM];
-    uint8_t  Usart2CmdBuff[USART2_COM_LONG_NUM];
-    uint8_t  Usart2CmdRun;
-
-}USART2PRA;
-
-
-
-
-
-
-
-
-
+#define   CMD_SETKEYLED_BITMAP  0X08
+#define   CMD_SETKEYLED         0X09
+#define   CMD_MAX               0X0a
 
 
 
 extern void Usart2_Rst(void);
 extern void Usart2_ini(void);
 
-extern void CMD_SendKeyTouch(uint8_t  cmdstate);
-extern void CMD_SetAlarmMode(void);
-extern void CMD_BeepOn(void);
-extern void CMD_ReadVer(void);
-extern void CMD_SetTouchMiss(void);
-extern void CMD_GoBoot(void);
-extern void CMD_LcdBlCtr(void);
+extern void uartSend(USART_TypeDef *USARTx, void *buf, unsigned int len);
+extern void CMD_SendKeyTouch(unsigned char keycode,unsigned short touchx,unsigned short touchy);
+extern void cmdProcess(void);
 
 
 
-
-
-//extern uint8_t KeyValue;
-extern USART2PRA Usart2Pra;
 
